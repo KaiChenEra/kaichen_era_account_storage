@@ -1,0 +1,4 @@
+# Dart-standard lints, matching kaichen_era_ai_kit's recommended ruleset.
+# The `lints` package (dev_dependency) provides the recommended Dart ruleset;
+# this file activates it.
+include: package:lints/recommended.yaml

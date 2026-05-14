@@ -1,0 +1,16 @@
+# Dart / Flutter generated artifacts
+.dart_tool/
+.packages
+build/
+
+# Pubspec lock - libraries don't commit this; only apps do
+pubspec.lock
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Coverage
+coverage/
