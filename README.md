@@ -2,8 +2,12 @@
 
 Account-scoped storage primitives shared by the KaiChenEra suite.
 
-This package is scaffold-only for W3-5. Actual SharedPreferences, Keychain facade, scoped-key, account-scope, and migration-helper code will land in W3-5-impl and the dependent W3-2 integration work.
+This package contains the W3-5 account-scoped SharedPreferences, Keychain install-session sentinel, scoped-key, account-scope, and migration-helper primitives.
 
 Current public API surface:
 
 - `kaichenEraCloudkitSyncVersion`, pinned to the package version.
+- `currentAccountScopeProvider`, `getActiveScopeForUserId`, `scopedKey`, `anonScope`, `AccountScopedPaths`, and `accountScopedPathsProvider`.
+- `ScopedPref`, `ScopedPrefCodec`, and `ScopedSyncedPref`.
+- `ensureInstallSessionFresh`.
+- `shouldPromptMigration`, `copyScopeStaged`, `markKeepAnon`, `inspectAnonMigrationSummary`, `mergeArrayIndex`, and `migratableKeys`.
