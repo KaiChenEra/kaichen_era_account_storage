@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'account_scope.dart';
+import 'product_prefix_provider.dart';
 import 'scoped_pref_codec.dart';
 
 class ScopedPref<T> extends Notifier<T?> {
@@ -22,11 +23,13 @@ class ScopedPref<T> extends Notifier<T?> {
   bool _hydrated = false;
   Future<void>? _hydrating;
   int _buildEpoch = 0;
+  late String _productPrefix;
 
   T? get value => state;
 
   @override
   T? build() {
+    _productPrefix = ref.watch(productPrefixProvider);
     _scope = ref.watch(currentAccountScopeProvider);
     _hydrated = false;
     _hydrating = null;
@@ -95,7 +98,8 @@ class ScopedPref<T> extends Notifier<T?> {
     _hydrated = true;
   }
 
-  String _key() => scopedKey(scope: _scope, rawKey: rawKey);
+  String _key() =>
+      scopedKey(productPrefix: _productPrefix, scope: _scope, rawKey: rawKey);
 
   /// Delegate to `SharedPreferences.getInstance()`. The plugin already
   /// caches the resolved instance internally, and `setMockInitialValues({})`

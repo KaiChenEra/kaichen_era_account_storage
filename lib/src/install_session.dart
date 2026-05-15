@@ -3,7 +3,8 @@
 ///
 /// Why: iOS + macOS Keychain entries with `kSecAttrAccessibleAfterFirstUnlock`
 /// persist across app uninstall. SharedPreferences IS wiped on uninstall,
-/// so the absence of [_kSentinel] is a reliable "fresh install" signal.
+/// so the absence of the product-specific sentinel is a reliable "fresh
+/// install" signal.
 ///
 /// Platform coverage:
 ///   - iOS: covered. App Group + keychain-access-groups configured in
@@ -16,19 +17,19 @@
 ///     this session are seen). Wipe call is safe but redundant.
 ///
 /// Invariants (do not relax without updating wipe semantics):
-///   - All lectio keychain entries are written with
+///   - All product keychain entries are written with
 ///     `KeychainAccessibility.first_unlock_this_device`, which implies
 ///     `kSecAttrSynchronizable = false` → no iCloud Keychain re-sync.
-///   - All lectio keys are prefixed `lectio.` — we DELETE BY PREFIX, not
-///     `deleteAll()`, to avoid wiping sibling apps (ariya etc.) that
+///   - All product keys are prefixed `<product>.` — we DELETE BY PREFIX,
+///     not `deleteAll()`, to avoid wiping sibling apps (ariya etc.) that
 ///     share App Group `group.com.kaiChenEra.suite`.
 library;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _kSentinel = 'lectio.app.install.initialized.v1';
-const _kLectioPrefix = 'lectio.';
+String _sentinelKey(String productPrefix) =>
+    '$productPrefix.app.install.initialized.v1';
 
 const _kSecureStorage = FlutterSecureStorage(
   iOptions: IOSOptions(
@@ -46,22 +47,26 @@ const _kSecureStorage = FlutterSecureStorage(
 /// Returns true iff this was the first launch after install.
 /// Idempotent — safe to call multiple times in one session.
 Future<bool> ensureInstallSessionFresh({
+  required String productPrefix,
   FlutterSecureStorage? storageOverride,
 }) async {
+  assert(productPrefix.isNotEmpty, 'productPrefix must be non-empty');
+  final sentinel = _sentinelKey(productPrefix);
+  final wipePrefix = '$productPrefix.';
   final prefs = await SharedPreferences.getInstance();
-  if (prefs.getBool(_kSentinel) == true) return false;
+  if (prefs.getBool(sentinel) == true) return false;
 
   final storage = storageOverride ?? _kSecureStorage;
 
   // readAll() returns every entry visible to this app's service+accessGroup;
-  // we filter to lectio.* so sibling apps in the same App Group are safe.
+  // we filter to productPrefix.* so sibling apps in the same App Group are safe.
   final all = await storage.readAll();
   for (final key in all.keys) {
-    if (key.startsWith(_kLectioPrefix)) {
+    if (key.startsWith(wipePrefix)) {
       await storage.delete(key: key);
     }
   }
 
-  await prefs.setBool(_kSentinel, true);
+  await prefs.setBool(sentinel, true);
   return true;
 }

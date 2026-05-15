@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kaichen_era_account_storage/kaichen_era_account_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final _stringCodec =
-    ScopedPrefCodec<String>(encode: (value) => value, decode: (raw) => raw);
+final _stringCodec = ScopedPrefCodec<String>(
+  encode: (value) => value,
+  decode: (raw) => raw,
+);
 
 void main() {
   setUp(() {
@@ -15,8 +17,9 @@ void main() {
   });
 
   test('hydrates on first read', () async {
-    SharedPreferences.setMockInitialValues(
-        <String, Object>{'lectio.anon.demo': 'persisted'});
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'lectio.anon.demo': 'persisted',
+    });
 
     final provider = _stringPrefProvider();
     final container = _container();
@@ -31,8 +34,9 @@ void main() {
 
   test('concurrent hydrate calls share one Future', () async {
     var decodeCount = 0;
-    SharedPreferences.setMockInitialValues(
-        <String, Object>{'lectio.anon.demo': 'persisted'});
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'lectio.anon.demo': 'persisted',
+    });
 
     final provider = _stringPrefProvider(
       codec: ScopedPrefCodec<String>(
@@ -69,6 +73,18 @@ void main() {
     expect(prefs.getString('demo'), isNull);
   });
 
+  test('product prefix override namespaces persisted key', () async {
+    final provider = _stringPrefProvider();
+    final container = _container(productPrefix: 'ariya');
+    final controller = container.read(provider.notifier);
+
+    await controller.set('local');
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('ariya.anon.demo'), 'local');
+    expect(prefs.getString('lectio.anon.demo'), isNull);
+  });
+
   test('setFromSync updates without invoking local-set hook', () async {
     final localSets = <String>[];
     final provider = _stringPrefProvider(onLocalSet: localSets.add);
@@ -87,7 +103,7 @@ void main() {
   test('account scope flip rebuilds and rehydrates from new scope', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'lectio.anon.demo': 'anonymous',
-      'lectio.user-u-1.demo': 'signed-in'
+      'lectio.user-u-1.demo': 'signed-in',
     });
 
     final provider = _stringPrefProvider();
@@ -106,26 +122,30 @@ void main() {
     expect(container.read(provider), 'signed-in');
   });
 
-  test('resetForTesting clears the cached SharedPreferences instance',
-      () async {
-    SharedPreferences.setMockInitialValues(
-        <String, Object>{'lectio.anon.demo': 'before-reset'});
+  test(
+    'resetForTesting clears the cached SharedPreferences instance',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'lectio.anon.demo': 'before-reset',
+      });
 
-    final firstProvider = _stringPrefProvider();
-    final firstContainer = _container();
-    await firstContainer.read(firstProvider.notifier).ensureHydrated();
-    expect(firstContainer.read(firstProvider), 'before-reset');
+      final firstProvider = _stringPrefProvider();
+      final firstContainer = _container();
+      await firstContainer.read(firstProvider.notifier).ensureHydrated();
+      expect(firstContainer.read(firstProvider), 'before-reset');
 
-    SharedPreferences.setMockInitialValues(
-        <String, Object>{'lectio.anon.demo': 'after-reset'});
-    ScopedPref.resetForTesting();
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'lectio.anon.demo': 'after-reset',
+      });
+      ScopedPref.resetForTesting();
 
-    final secondProvider = _stringPrefProvider();
-    final secondContainer = _container();
-    await secondContainer.read(secondProvider.notifier).ensureHydrated();
+      final secondProvider = _stringPrefProvider();
+      final secondContainer = _container();
+      await secondContainer.read(secondProvider.notifier).ensureHydrated();
 
-    expect(secondContainer.read(secondProvider), 'after-reset');
-  });
+      expect(secondContainer.read(secondProvider), 'after-reset');
+    },
+  );
 }
 
 NotifierProvider<ScopedPref<String>, String?> _stringPrefProvider({
@@ -133,13 +153,22 @@ NotifierProvider<ScopedPref<String>, String?> _stringPrefProvider({
   ScopedPrefCodec<String>? codec,
   FutureOr<void> Function(String value)? onLocalSet,
 }) {
-  return NotifierProvider<ScopedPref<String>, String?>(() => ScopedPref<String>(
-      rawKey: rawKey, codec: codec ?? _stringCodec, onLocalSet: onLocalSet));
+  return NotifierProvider<ScopedPref<String>, String?>(
+    () => ScopedPref<String>(
+      rawKey: rawKey,
+      codec: codec ?? _stringCodec,
+      onLocalSet: onLocalSet,
+    ),
+  );
 }
 
-ProviderContainer _container({String Function()? scope}) {
+ProviderContainer _container({
+  String Function()? scope,
+  String productPrefix = 'lectio',
+}) {
   final container = ProviderContainer(
     overrides: [
+      productPrefixProvider.overrideWithValue(productPrefix),
       currentAccountScopeProvider.overrideWith((ref) {
         return scope?.call() ?? anonScope;
       }),

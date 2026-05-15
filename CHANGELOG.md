@@ -2,6 +2,12 @@
 
 All notable changes to `kaichen_era_account_storage` are documented here.
 
+## 0.0.3
+
+- Parameterize product prefix (was hardcoded 'lectio.'). All callers must
+  now pass `productPrefix` explicitly or override `productPrefixProvider`.
+  Breaks: scopedKey() and ensureInstallSessionFresh() signatures.
+
 ## 0.0.2 — 2026-05-15 — Storage primitives (W3-5-impl)
 
 - Lifted account-scoped storage primitives from `lectio_app`.

@@ -57,7 +57,10 @@ void main() {
         'ariya.session': 'KEEP-ME',
       });
 
-      final isFirst = await ensureInstallSessionFresh(storageOverride: storage);
+      final isFirst = await ensureInstallSessionFresh(
+        productPrefix: 'lectio',
+        storageOverride: storage,
+      );
 
       expect(isFirst, isTrue);
       expect(storage._data.keys, ['ariya.session']);
@@ -72,7 +75,10 @@ void main() {
       });
       final storage = _FakeSecureStorage({'lectio.jwt.access': 'tok'});
 
-      final isFirst = await ensureInstallSessionFresh(storageOverride: storage);
+      final isFirst = await ensureInstallSessionFresh(
+        productPrefix: 'lectio',
+        storageOverride: storage,
+      );
 
       expect(isFirst, isFalse);
       expect(storage.deleteCalls, 0);
@@ -83,8 +89,14 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final storage = _FakeSecureStorage({'lectio.jwt.access': 'tok'});
 
-      final first = await ensureInstallSessionFresh(storageOverride: storage);
-      final second = await ensureInstallSessionFresh(storageOverride: storage);
+      final first = await ensureInstallSessionFresh(
+        productPrefix: 'lectio',
+        storageOverride: storage,
+      );
+      final second = await ensureInstallSessionFresh(
+        productPrefix: 'lectio',
+        storageOverride: storage,
+      );
 
       expect(first, isTrue);
       expect(second, isFalse);
@@ -95,12 +107,36 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final storage = _FakeSecureStorage({});
 
-      final isFirst = await ensureInstallSessionFresh(storageOverride: storage);
+      final isFirst = await ensureInstallSessionFresh(
+        productPrefix: 'lectio',
+        storageOverride: storage,
+      );
 
       expect(isFirst, isTrue);
       expect(storage.deleteCalls, 0);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('lectio.app.install.initialized.v1'), isTrue);
+    });
+
+    test('fresh install: ariya prefix only wipes ariya keys', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final storage = _FakeSecureStorage({
+        'ariya.jwt.access': 'tok',
+        'ariya.device.id': 'dev-1',
+        'lectio.jwt.access': 'KEEP-ME',
+      });
+
+      final isFirst = await ensureInstallSessionFresh(
+        productPrefix: 'ariya',
+        storageOverride: storage,
+      );
+
+      expect(isFirst, isTrue);
+      expect(storage._data.keys, ['lectio.jwt.access']);
+      expect(storage._data['lectio.jwt.access'], 'KEEP-ME');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('ariya.app.install.initialized.v1'), isTrue);
+      expect(prefs.getBool('lectio.app.install.initialized.v1'), isNull);
     });
   });
 }

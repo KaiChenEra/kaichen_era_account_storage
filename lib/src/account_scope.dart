@@ -5,13 +5,14 @@
 /// **Why**: Lectio supports anonymous use (free tier) AND authenticated
 /// use (pro tier). When userId flips null → "u-1", the in-memory stores
 /// must NOT show the previous user's prefs / credentials / entitlement.
-/// We solve this by prefixing every persistent key with the active scope:
-///   - anonymous → `lectio.anon.raw_key`
-///   - user u-1  → `lectio.user-u-1.raw_key`
+/// We solve this by prefixing every persistent key with the product prefix and
+/// active scope:
+///   - anonymous → `<product>.anon.raw_key`
+///   - user u-1  → `<product>.user-u-1.raw_key`
 ///
-/// Hosts compute the active scope from their auth/session state and override
-/// [currentAccountScopeProvider]. `scopedKey(rawKey)` wraps a raw
-/// SharedPreferences key for the current scope.
+/// Hosts compute the product prefix and active scope from their boot/session
+/// state. `scopedKey(productPrefix, rawKey)` wraps a raw SharedPreferences key
+/// for the current scope.
 ///
 /// **USERID_REGEX**: Defensive — paths like `'../'` could let a
 /// malformed userId escape the scope sandbox into another user's
@@ -42,11 +43,19 @@ String getActiveScopeForUserId(String? userId) {
 /// Pure function — caller passes the scope explicitly so tests can use
 /// it without spinning up Riverpod.
 ///
-/// e.g. scopedKey(scope: 'user-u-1', rawKey: 'engine_config') →
-///      'lectio.user-u-1.engine_config'
-String scopedKey({required String scope, required String rawKey}) {
+/// e.g. scopedKey(
+///        productPrefix: 'lectio',
+///        scope: 'user-u-1',
+///        rawKey: 'engine_config',
+///      ) → 'lectio.user-u-1.engine_config'
+String scopedKey({
+  required String productPrefix,
+  required String scope,
+  required String rawKey,
+}) {
+  assert(productPrefix.isNotEmpty, 'productPrefix must be non-empty');
   assert(rawKey.isNotEmpty, 'rawKey must be non-empty');
-  return 'lectio.$scope.$rawKey';
+  return '$productPrefix.$scope.$rawKey';
 }
 
 /// Public constants — exposed for callers that want to compare directly
