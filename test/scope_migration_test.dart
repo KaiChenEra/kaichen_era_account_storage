@@ -10,14 +10,18 @@ import 'package:kaichen_era_account_storage/kaichen_era_account_storage.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const _productPrefix = 'ariya';
+
+String _scopedKey({required String scope, required String rawKey}) {
+  return scopedKey(productPrefix: _productPrefix, scope: scope, rawKey: rawKey);
+}
+
 void main() {
   late Directory root;
 
   setUp(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    root = await Directory.systemTemp.createTemp(
-      'lectio_scope_migration_test_',
-    );
+    root = await Directory.systemTemp.createTemp('ariya_scope_migration_test_');
     PathProviderPlatform.instance = _FakePathProvider(root.path);
     SharedPreferences.setMockInitialValues({});
   });
@@ -33,12 +37,13 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       // Plant some anon data so we'd otherwise prompt
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
         'dark',
       );
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: 'user-old',
           toScope: 'user-new',
           prefs: prefs,
@@ -50,12 +55,13 @@ void main() {
     test('false when toScope is anon (signing out)', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
         'dark',
       );
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: anonScope,
           prefs: prefs,
@@ -68,6 +74,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -79,7 +86,7 @@ void main() {
     test('true when anon has migratable data and no prior decision', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
+        _scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
         jsonEncode({
           'activeEngineId': 'azure_doc_intel',
           'byEngineId': {
@@ -99,6 +106,7 @@ void main() {
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -110,7 +118,7 @@ void main() {
     test('false when anon only has default preference writes', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
+        _scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
         jsonEncode({
           'activeEngineId': 'apple_vision',
           'byEngineId': {
@@ -123,28 +131,29 @@ void main() {
         }),
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
         'camera',
       );
       await prefs.setBool(
-        scopedKey(scope: anonScope, rawKey: 'strategy.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'strategy.v1'),
         false,
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'post_capture_action.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'post_capture_action.v1'),
         'home',
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'icloud_sync.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'icloud_sync.v1'),
         '{"enabled":false,"userSet":false}',
       );
       await prefs.setInt(
-        scopedKey(scope: anonScope, rawKey: 'concurrent_limit_override.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'concurrent_limit_override.v1'),
         1,
       );
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -152,7 +161,11 @@ void main() {
         isFalse,
       );
       expect(
-        (await inspectAnonMigrationSummary(prefs: prefs)).dialogLines,
+        (await inspectAnonMigrationSummary(
+          productPrefix: _productPrefix,
+          prefs: prefs,
+        ))
+            .dialogLines,
         isEmpty,
       );
     });
@@ -160,20 +173,21 @@ void main() {
     test('false when anon only has internal stats or queues', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(
-        scopedKey(scope: anonScope, rawKey: 'pages_processed.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'pages_processed.v1'),
         3,
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'usage.log'),
+        _scopedKey(scope: anonScope, rawKey: 'usage.log'),
         '[{"ts":1}]',
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'cloudkit.push_queue.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'cloudkit.push_queue.v1'),
         '[{"id":"q1"}]',
       );
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -185,16 +199,17 @@ void main() {
     test('false when user-visible indices are empty', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'docs.index'),
+        _scopedKey(scope: anonScope, rawKey: 'docs.index'),
         '[]',
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'credentials.index'),
+        _scopedKey(scope: anonScope, rawKey: 'credentials.index'),
         '[]',
       );
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -213,6 +228,7 @@ void main() {
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -224,31 +240,35 @@ void main() {
     test('summary lists the data that will be migrated', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'docs.index'),
+        _scopedKey(scope: anonScope, rawKey: 'docs.index'),
         jsonEncode([
           {'id': 'doc-1'},
           {'id': 'doc-2'},
         ]),
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'credentials.index'),
+        _scopedKey(scope: anonScope, rawKey: 'credentials.index'),
         jsonEncode([
           {'id': 'cred-1'},
         ]),
       );
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
         'gallery',
       );
-      final docsRoot =
-          await const AccountScopedPaths(anonScope).documentsRoot();
+      final docsRoot = await const AccountScopedPaths(
+        anonScope,
+      ).documentsRoot();
       await docsRoot.create(recursive: true);
       await File(
         '${docsRoot.path}/doc-1/manifest.json',
       ).create(recursive: true);
       await File('${docsRoot.path}/doc-1/manifest.json').writeAsString('{}');
 
-      final summary = await inspectAnonMigrationSummary(prefs: prefs);
+      final summary = await inspectAnonMigrationSummary(
+        productPrefix: _productPrefix,
+        prefs: prefs,
+      );
 
       expect(summary.hasData, isTrue);
       expect(
@@ -260,13 +280,18 @@ void main() {
     test('false when user already chose merged', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
         'dark',
       );
-      await markKeepAnon(userScope: 'user-1', prefs: prefs);
+      await markKeepAnon(
+        productPrefix: _productPrefix,
+        userScope: 'user-1',
+        prefs: prefs,
+      );
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -281,19 +306,23 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       // Plant 3 different types
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
+        _scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
         '{"engineId":"apple_vision"}',
       );
       await prefs.setBool(
-        scopedKey(scope: anonScope, rawKey: 'icloud_sync.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'icloud_sync.v1'),
         true,
       );
       await prefs.setInt(
-        scopedKey(scope: anonScope, rawKey: 'concurrent_limit_override.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'concurrent_limit_override.v1'),
         3,
       );
 
-      final copied = await copyScopeStaged(userScope: 'user-1', prefs: prefs);
+      final copied = await copyScopeStaged(
+        productPrefix: _productPrefix,
+        userScope: 'user-1',
+        prefs: prefs,
+      );
 
       expect(
         copied,
@@ -304,23 +333,25 @@ void main() {
         ]),
       );
       expect(
-        prefs.getString(scopedKey(scope: 'user-1', rawKey: 'engine_config.v2')),
+        prefs.getString(
+          _scopedKey(scope: 'user-1', rawKey: 'engine_config.v2'),
+        ),
         '{"engineId":"apple_vision"}',
       );
       expect(
-        prefs.getBool(scopedKey(scope: 'user-1', rawKey: 'icloud_sync.v1')),
+        prefs.getBool(_scopedKey(scope: 'user-1', rawKey: 'icloud_sync.v1')),
         isTrue,
       );
       expect(
         prefs.getInt(
-          scopedKey(scope: 'user-1', rawKey: 'concurrent_limit_override.v1'),
+          _scopedKey(scope: 'user-1', rawKey: 'concurrent_limit_override.v1'),
         ),
         3,
       );
       // Anon copies removed
       expect(
         prefs.containsKey(
-          scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
+          _scopedKey(scope: anonScope, rawKey: 'engine_config.v2'),
         ),
         isFalse,
       );
@@ -329,25 +360,29 @@ void main() {
     test('credentials.index merges with existing user-scope', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'credentials.index'),
+        _scopedKey(scope: anonScope, rawKey: 'credentials.index'),
         jsonEncode([
           {'id': 'a-1', 'label': 'Anon Azure'},
           {'id': 'shared', 'label': 'Anon copy of shared'},
         ]),
       );
       await prefs.setString(
-        scopedKey(scope: 'user-1', rawKey: 'credentials.index'),
+        _scopedKey(scope: 'user-1', rawKey: 'credentials.index'),
         jsonEncode([
           {'id': 'u-1', 'label': 'User Azure'},
           {'id': 'shared', 'label': 'User copy of shared'},
         ]),
       );
 
-      await copyScopeStaged(userScope: 'user-1', prefs: prefs);
+      await copyScopeStaged(
+        productPrefix: _productPrefix,
+        userScope: 'user-1',
+        prefs: prefs,
+      );
 
       final merged = jsonDecode(
         prefs.getString(
-          scopedKey(scope: 'user-1', rawKey: 'credentials.index'),
+          _scopedKey(scope: 'user-1', rawKey: 'credentials.index'),
         )!,
       );
       // Existing user entries first, then anon-only entries (shared dedupped to user's copy)
@@ -361,15 +396,20 @@ void main() {
     test('records merged decision', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
         'dark',
       );
 
-      await copyScopeStaged(userScope: 'user-1', prefs: prefs);
+      await copyScopeStaged(
+        productPrefix: _productPrefix,
+        userScope: 'user-1',
+        prefs: prefs,
+      );
 
       // shouldPromptMigration → false now (decision recorded)
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,
@@ -381,7 +421,11 @@ void main() {
     test('handles missing keys gracefully', () async {
       final prefs = await SharedPreferences.getInstance();
       // No anon data
-      final copied = await copyScopeStaged(userScope: 'user-1', prefs: prefs);
+      final copied = await copyScopeStaged(
+        productPrefix: _productPrefix,
+        userScope: 'user-1',
+        prefs: prefs,
+      );
       expect(copied, isEmpty);
     });
   });
@@ -450,14 +494,19 @@ void main() {
     test('markKeepAnon blocks future prompts', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
+        _scopedKey(scope: anonScope, rawKey: 'home_mode.v1'),
         'dark',
       );
 
-      await markKeepAnon(userScope: 'user-1', prefs: prefs);
+      await markKeepAnon(
+        productPrefix: _productPrefix,
+        userScope: 'user-1',
+        prefs: prefs,
+      );
 
       expect(
         await shouldPromptMigration(
+          productPrefix: _productPrefix,
           fromScope: anonScope,
           toScope: 'user-1',
           prefs: prefs,

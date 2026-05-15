@@ -10,6 +10,7 @@ export 'src/account_scope.dart'
         getActiveScopeForUserId,
         scopedKey;
 export 'src/install_session.dart' show ensureInstallSessionFresh;
+export 'src/product_prefix_provider.dart' show productPrefixProvider;
 export 'src/scoped_pref.dart' show ScopedPref;
 export 'src/scoped_pref_codec.dart' show ScopedPrefCodec;
 export 'src/scoped_synced_pref.dart'
@@ -25,4 +26,4 @@ export 'src/scope_migration.dart'
         shouldPromptMigration;
 
 /// Pinned version. Keep in sync with pubspec.yaml.
-const String kaichenEraCloudkitSyncVersion = '0.0.2';
+const String kaichenEraCloudkitSyncVersion = '0.0.3';

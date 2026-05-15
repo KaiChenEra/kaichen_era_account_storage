@@ -38,11 +38,15 @@ void main() {
   });
 
   group('scopedKey', () {
-    test('scopedKey wraps with prefix', () {
-      expect(scopedKey(scope: 'anon', rawKey: 'engine_config'),
-          'lectio.anon.engine_config');
-      expect(scopedKey(scope: 'user-u-1', rawKey: 'theme'),
-          'lectio.user-u-1.theme');
+    test('scopedKey wraps with product prefix', () {
+      expect(
+        scopedKey(productPrefix: 'test', scope: 'foo', rawKey: 'bar'),
+        'test.foo.bar',
+      );
+      expect(
+        scopedKey(productPrefix: 'ariya', scope: 'user-u-1', rawKey: 'theme'),
+        'ariya.user-u-1.theme',
+      );
     });
   });
 }

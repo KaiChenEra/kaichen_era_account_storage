@@ -52,7 +52,8 @@ const Set<String> migratableKeys = {
   'cloudkit.push_queue.v1',
 };
 
-const String _migrationDecisionKey = 'lectio._migration.decision.v1';
+String _migrationDecisionKey(String productPrefix) =>
+    '$productPrefix._migration.decision.v1';
 
 class AnonMigrationSummary {
   const AnonMigrationSummary({
@@ -95,69 +96,128 @@ class AnonMigrationSummary {
 
 /// Returns true if we should prompt the user for migration on this
 /// sign-in. Pure — caller passes SharedPreferences.
-Future<bool> shouldPromptMigration(
-    {required String fromScope,
-    required String toScope,
-    required SharedPreferences prefs}) async {
+Future<bool> shouldPromptMigration({
+  required String productPrefix,
+  required String fromScope,
+  required String toScope,
+  required SharedPreferences prefs,
+}) async {
+  assert(productPrefix.isNotEmpty, 'productPrefix must be non-empty');
   // Only prompt on anon → user transitions
   if (fromScope != anonScope) return false;
   if (toScope == anonScope) return false;
 
   // 1. Has user already made a permanent decision (merge / keep)?
-  final decision = prefs.getString('$_migrationDecisionKey.$toScope');
+  final decision = prefs.getString(
+    '${_migrationDecisionKey(productPrefix)}.$toScope',
+  );
   if (decision != null) return false;
 
   // 2. Does the anon scope have user-visible data worth asking about?
-  return (await inspectAnonMigrationSummary(prefs: prefs)).hasData;
+  return (await inspectAnonMigrationSummary(
+    productPrefix: productPrefix,
+    prefs: prefs,
+  ))
+      .hasData;
 }
 
-Future<AnonMigrationSummary> inspectAnonMigrationSummary(
-    {required SharedPreferences prefs}) async {
+Future<AnonMigrationSummary> inspectAnonMigrationSummary({
+  required String productPrefix,
+  required SharedPreferences prefs,
+}) async {
+  assert(productPrefix.isNotEmpty, 'productPrefix must be non-empty');
   final files = await _countAnonScopedFiles();
   return AnonMigrationSummary(
     documentCount: _jsonArrayLength(
-        prefs.getString(scopedKey(scope: anonScope, rawKey: 'docs.index'))),
-    credentialCount: _jsonArrayLength(prefs
-        .getString(scopedKey(scope: anonScope, rawKey: 'credentials.index'))),
-    preferenceLabels: _meaningfulPreferenceLabels(prefs),
+      prefs.getString(
+        scopedKey(
+          productPrefix: productPrefix,
+          scope: anonScope,
+          rawKey: 'docs.index',
+        ),
+      ),
+    ),
+    credentialCount: _jsonArrayLength(
+      prefs.getString(
+        scopedKey(
+          productPrefix: productPrefix,
+          scope: anonScope,
+          rawKey: 'credentials.index',
+        ),
+      ),
+    ),
+    preferenceLabels: _meaningfulPreferenceLabels(productPrefix, prefs),
     documentFileCount: files.documents,
   );
 }
 
-List<String> _meaningfulPreferenceLabels(SharedPreferences prefs) {
+List<String> _meaningfulPreferenceLabels(
+  String productPrefix,
+  SharedPreferences prefs,
+) {
   final labels = <String>[];
-  final engineRaw =
-      prefs.getString(scopedKey(scope: anonScope, rawKey: 'engine_config.v2'));
+  final engineRaw = prefs.getString(
+    scopedKey(
+      productPrefix: productPrefix,
+      scope: anonScope,
+      rawKey: 'engine_config.v2',
+    ),
+  );
   if (engineRaw != null && !_isDefaultEngineConfig(engineRaw)) {
     labels.add('识别引擎');
   }
 
-  final iCloudRaw =
-      prefs.getString(scopedKey(scope: anonScope, rawKey: 'icloud_sync.v1'));
+  final iCloudRaw = prefs.getString(
+    scopedKey(
+      productPrefix: productPrefix,
+      scope: anonScope,
+      rawKey: 'icloud_sync.v1',
+    ),
+  );
   if (iCloudRaw != null && _isMeaningfulICloudPref(iCloudRaw)) {
     labels.add('iCloud');
   }
 
   final concurrent = prefs.getInt(
-      scopedKey(scope: anonScope, rawKey: 'concurrent_limit_override.v1'));
+    scopedKey(
+      productPrefix: productPrefix,
+      scope: anonScope,
+      rawKey: 'concurrent_limit_override.v1',
+    ),
+  );
   if (concurrent != null && concurrent > 1) {
     labels.add('并发数');
   }
 
-  final homeMode =
-      prefs.getString(scopedKey(scope: anonScope, rawKey: 'home_mode.v1'));
+  final homeMode = prefs.getString(
+    scopedKey(
+      productPrefix: productPrefix,
+      scope: anonScope,
+      rawKey: 'home_mode.v1',
+    ),
+  );
   if (homeMode != null && homeMode != 'camera') {
     labels.add('首页入口');
   }
 
-  final roundRobin =
-      prefs.getBool(scopedKey(scope: anonScope, rawKey: 'strategy.v1'));
+  final roundRobin = prefs.getBool(
+    scopedKey(
+      productPrefix: productPrefix,
+      scope: anonScope,
+      rawKey: 'strategy.v1',
+    ),
+  );
   if (roundRobin == true) {
     labels.add('Key 轮询');
   }
 
-  final postCapture = prefs
-      .getString(scopedKey(scope: anonScope, rawKey: 'post_capture_action.v1'));
+  final postCapture = prefs.getString(
+    scopedKey(
+      productPrefix: productPrefix,
+      scope: anonScope,
+      rawKey: 'post_capture_action.v1',
+    ),
+  );
   if (postCapture == 'detail' || postCapture == 'document') {
     labels.add('识别后跳转');
   }
@@ -224,14 +284,26 @@ Future<int> _countFiles(Directory dir) async {
 ///
 /// Pure-ish: side-effects through SharedPreferences only. Returns the
 /// list of keys actually copied (some may be absent in anon).
-Future<List<String>> copyScopeStaged(
-    {required String userScope, required SharedPreferences prefs}) async {
+Future<List<String>> copyScopeStaged({
+  required String productPrefix,
+  required String userScope,
+  required SharedPreferences prefs,
+}) async {
+  assert(productPrefix.isNotEmpty, 'productPrefix must be non-empty');
   final copied = <String>[];
   final previousUserValues = <String, Object?>{};
   final anonKeysToRemove = <String>[];
   for (final raw in migratableKeys) {
-    final fromKey = scopedKey(scope: anonScope, rawKey: raw);
-    final toKey = scopedKey(scope: userScope, rawKey: raw);
+    final fromKey = scopedKey(
+      productPrefix: productPrefix,
+      scope: anonScope,
+      rawKey: raw,
+    );
+    final toKey = scopedKey(
+      productPrefix: productPrefix,
+      scope: userScope,
+      rawKey: raw,
+    );
     final value = prefs.get(fromKey);
     if (value == null) continue;
     previousUserValues[toKey] = prefs.get(toKey);
@@ -269,15 +341,25 @@ Future<List<String>> copyScopeStaged(
   for (final key in anonKeysToRemove) {
     await prefs.remove(key);
   }
-  await prefs.setString('$_migrationDecisionKey.$userScope', 'merged');
+  await prefs.setString(
+    '${_migrationDecisionKey(productPrefix)}.$userScope',
+    'merged',
+  );
   return copied;
 }
 
 /// User picked 「保留在本机不上传」. Anon scope stays intact; record the
 /// choice so the prompt doesn't re-fire on this user.
-Future<void> markKeepAnon(
-    {required String userScope, required SharedPreferences prefs}) async {
-  await prefs.setString('$_migrationDecisionKey.$userScope', 'keep_anon');
+Future<void> markKeepAnon({
+  required String productPrefix,
+  required String userScope,
+  required SharedPreferences prefs,
+}) async {
+  assert(productPrefix.isNotEmpty, 'productPrefix must be non-empty');
+  await prefs.setString(
+    '${_migrationDecisionKey(productPrefix)}.$userScope',
+    'keep_anon',
+  );
 }
 
 // ─── Pure helpers ────────────────────────────────────────────────────
@@ -330,10 +412,11 @@ Future<void> migrateAnonScopedFilesToUser({required String userScope}) async {
   try {
     for (var i = 0; i < fromRoots.length; i++) {
       await _copyDirectoryContents(
-          from: fromRoots[i],
-          to: toRoots[i],
-          copied: copied,
-          anonToRemove: anonToRemove);
+        from: fromRoots[i],
+        to: toRoots[i],
+        copied: copied,
+        anonToRemove: anonToRemove,
+      );
     }
   } catch (_) {
     for (final entity in copied.reversed) {
@@ -407,7 +490,10 @@ Future<void> _copyDirectory(Directory from, Directory to) async {
 }
 
 Future<void> _restorePrefValue(
-    SharedPreferences prefs, String key, Object? value) async {
+  SharedPreferences prefs,
+  String key,
+  Object? value,
+) async {
   if (value == null) {
     await prefs.remove(key);
   } else if (value is String) {
