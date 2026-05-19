@@ -9,6 +9,15 @@ export 'src/account_scope.dart'
         currentAccountScopeProvider,
         getActiveScopeForUserId,
         scopedKey;
+export 'src/icloud_pref_controller.dart'
+    show
+        EntitlementTier,
+        EntitlementTierSource,
+        ICloudPrefController,
+        ICloudPrefSet,
+        ICloudPrefState,
+        defaultICloudPrefToggleRawKey,
+        iCloudPrefStateCodec;
 export 'src/install_session.dart' show ensureInstallSessionFresh;
 export 'src/product_prefix_provider.dart' show productPrefixProvider;
 export 'src/scoped_pref.dart' show ScopedPref;
@@ -26,4 +35,4 @@ export 'src/scope_migration.dart'
         shouldPromptMigration;
 
 /// Pinned version. Keep in sync with pubspec.yaml.
-const String kaichenEraCloudkitSyncVersion = '0.0.3';
+const String kaichenEraCloudkitSyncVersion = '0.0.4';

@@ -12,7 +12,7 @@ import 'package:meta/meta.dart';
 void main() {
   group('kaichen_era_account_storage scaffold', () {
     test('package barrel exposes pinned version', () {
-      expect(kaichenEraCloudkitSyncVersion, '0.0.2');
+      expect(kaichenEraCloudkitSyncVersion, '0.0.4');
     });
 
     test('production dependency meta resolves', () {
