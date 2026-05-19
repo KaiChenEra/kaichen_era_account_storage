@@ -1,6 +1,6 @@
 name: kaichen_era_account_storage
 description: Account-scoped storage primitives (SharedPreferences + Keychain facade) shared by KaiChenEra suite (scoped key + account scope + migration helpers).
-version: 0.0.3
+version: 0.0.4
 publish_to: none
 
 environment:

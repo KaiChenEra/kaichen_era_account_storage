@@ -11,6 +11,7 @@ Current public API surface:
 - `ScopedPref`, `ScopedPrefCodec`, and `ScopedSyncedPref`.
 - `ensureInstallSessionFresh`.
 - `shouldPromptMigration`, `copyScopeStaged`, `markKeepAnon`, `inspectAnonMigrationSummary`, `mergeArrayIndex`, and `migratableKeys`.
+- `ICloudPrefController`, `ICloudPrefState`, `ICloudPrefSet`, `EntitlementTier`, `EntitlementTierSource`, `iCloudPrefStateCodec`, and `defaultICloudPrefToggleRawKey`.
 
 ## Suite-wide neutrality
 
@@ -38,3 +39,33 @@ final key = scopedKey(
   rawKey: 'engine_config.v2',
 );
 ```
+
+## iCloud pref sync controller
+
+`ICloudPrefController` owns the on/off state for iCloud preference sync,
+with tier-flip-aware auto-toggle (`free → pro` auto-on, `pro → free`
+auto-off; sticky once the user has explicitly toggled once) and
+per-account-scope rebuild semantics. Each suite app declares its own
+`ICloudPrefSet` (product prefix + pref list) and `EntitlementTierSource`
+(adapter onto the host's entitlement provider), then subclasses
+`ICloudPrefController` with a one-liner:
+
+```dart
+class LectioICloudPrefController extends ICloudPrefController {
+  LectioICloudPrefController()
+      : super(prefSet: LectioPrefSet(), tierSource: LectioTierSource());
+
+  @override
+  String get toggleRawKey => PrefKeys.icloudSync;
+}
+
+final iCloudPrefProvider =
+    NotifierProvider<LectioICloudPrefController, ICloudPrefState>(
+  LectioICloudPrefController.new,
+);
+```
+
+The actual cross-device push (NSUbiquitousKeyValueStore write or CloudKit
+upload) is still host-driven for now. `ICloudPrefSet.prefs` holds the pref
+list the future KVStore wire will iterate over — populate it today so the
+upgrade is a no-op at the call site.
